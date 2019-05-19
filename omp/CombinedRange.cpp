@@ -74,6 +74,7 @@ std::vector<CombinedRange> CombinedRange::joinRanges(
         combinedRanges.emplace_back(CombinedRange{i, holeCardRanges[i]});
 
     for (;;) {
+    	break;
         uint64_t bestSize = ~0ull;
         unsigned besti = 0, bestj = 0;
         for (unsigned i = 0; i < combinedRanges.size(); ++i) {

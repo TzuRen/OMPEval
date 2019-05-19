@@ -1,4 +1,70 @@
-# OMPEval
+# OMPEval for python
+
+This is a fork of the OMPEval C++ hand evaluator repository. The regular readme can be found below.
+
+This implementation is for using OMPEval's equity calculator in python. It also adds the functionality to calculate equities for smaller boards. For example the equity if the showdown was at the flop, instead of the river. The contribution is one library libhandequity.so which can be imported in python through ctypes. The motivation is that no python library can be nearly as fast [[1](https://github.com/worldveil/deuces)].
+
+## Usage
+Here is a simple example of how to use it in python:
+```python
+# Import ctypes, it is native to python
+import numpy.ctypeslib as ctl
+import ctypes
+libname = 'libhandequity.so'
+# The path may have to be changed
+libdir = '../OMPEval-fork/lib/'
+lib = ctl.load_library(libname, libdir)
+# Defining the python function from the library
+omp_hand_equity = lib.hand_equity
+# Determining its arguments and return types
+omp_hand_equity.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_bool]
+omp_hand_equity.restype = ctypes.c_double
+# Defining the arguments
+hole_card = "9sKs"  # 9 of spades and ten of spades
+community_card = "8dAhKh" # Number of cards defined here may very between 0 and 5
+nb_players = 6 # Number of players may vary between 2 and 6
+nb_board_cards = 5 # Default is 5. If = 3, showdown is at flop
+std_err_tol = 10**-5 # Default is 10**-5. This is the std in % at which the hand equity will be returned
+verbose = True # Default is False
+time_1 = time.time()
+# Calling the function (goes from python to C++ and back)
+hand_equity = omp_hand_equity(hole_card.encode(), community_card.encode(), nb_players, nb_board_cards, std_err_tol, verbose)
+print ("The equity is: " + str(hand_equity*100)+"%")
+```
+
+### Rebuilding
+If a user wants to expand the code, for example to include opponent hand ranges, everything can be rebuild with [rebuild_libs](./rebuild_libs).
+This will rebuild both libompeval.a and libhandequity.so.
+
+### Performance and comparison
+OMPEval is tested against two python-native libraries. The measure is the amount of evaluations per second:
+- [pypokerengine](https://github.com/ishikota/PyPokerEngine) : 14'200 [evals/s]
+- [Deuces](https://github.com/worldveil/deuces) : 47'700 [evals/s]
+- [OMPEval](https://github.com/zekyll/OMPEval) : 21'100'000 [evals/s]
+
+These measures are not performed in a robust setup, however we can get the order of magnitude. The code used to obtain these measures and example usage of these libraries can be found in [hand_evaluators.py](./hand_evaluators.py)
+
+The overhead of calling the C++ function from python is not an issue as it consistently takes less than 0.5 ms.
+
+###Note on overhead and CombineRange scheme
+
+Another overhead was spotted. As can be seen below, the majority of the total computation time did not come from evaluating hands. This being especially true when there are more players.
+```   
+               Total time         Time on evals
+2 players :    9 [ms]             1.9 [ms]           
+4 players :    105 [ms]           2.5 [ms]           
+6 players :    335 [ms]           3.3 [ms]           
+
+```
+This overhead came from the scheme used to combine hand ranges. This scheme speeds up the distribution of cards. It avoids distributing the same card to different players, which would result in restarting the distribution. It is relevant for highly overlapping hand ranges, but causes overhead for very broad ranges. It was thus removed.
+```   
+               Total time         Time on evals
+2 players :    9.7 [ms]           2.2 [ms]           
+4 players :    14.0 [ms]          2.9 [ms]           
+6 players :    17.5 [ms]          3.4 [ms]           
+
+```
+# OMPEval (regular)
 
 OMPEval is a fast C++ hand evaluator and equity calculator for Texas Holdem poker.
 

@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <array>
 #include <cstdint>
+#include <functional>
 
 namespace omp {
 
@@ -74,7 +75,7 @@ public:
     bool start(const std::vector<CardRange>& handRanges, uint64_t boardCards = 0, uint64_t deadCards = 0,
                bool enumerateAll = false, double stdevTarget = 5e-5,
                std::function<void(const Results&)> callback = nullptr,
-               double updateInterval = 0.2, unsigned threadCount = 0);
+               double updateInterval = 0.2, unsigned threadCount = 0, unsigned nb_board_cards = 5);
 
     // Force current calculation to stop before it's ready. Still must call wait()!
     void stop()
@@ -196,6 +197,7 @@ private:
     CombinedRange mCombinedRanges[MAX_PLAYERS];
     unsigned mCombinedRangeCount;
     uint64_t mDeadCards, mBoardCards;
+    uint64_t m_nb_board_cards;
     HandEvaluator mEval;
     double mStdevTarget = 5e-5, mTimeLimit = (double)INFINITE, mUpdateInterval = 0.1;
     uint64_t mHandLimit = INFINITE;

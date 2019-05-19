@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# remove the libraries
+rm -r ./lib
+# rebuild ompeval
+make
+# rename it, this is necessary for the 'lib' prefix
+mv ./lib/ompeval.a ./lib/libompeval.a
+# build handEquity's lib: libhandequity.so
+g++ -shared -o ./lib/libhandequity.so -fPIC handEquity.cpp ./omp/CardRange.cpp ./omp/EquityCalculator.cpp ./omp/CombinedRange.cpp ./omp/HandEvaluator.cpp -pthread -Wl,--no-undefined

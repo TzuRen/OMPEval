@@ -11,7 +11,7 @@ static const unsigned SUIT_COUNT = 4;
 static const unsigned SUIT_MASK = 0x3;
 static const unsigned RANK_MASK = 0x3c;
 static const unsigned RANK_SHIFT = 2;
-static const unsigned BOARD_CARDS = 5;
+//static const unsigned BOARD_CARDS = 5;
 static const unsigned COMBO_COUNT = 1326;
 
 static const unsigned HAND_CATEGORY_OFFSET = 0x1000; // 4096

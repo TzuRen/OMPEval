@@ -6,27 +6,33 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
+using namespace std::chrono;
+using namespace std;
 namespace omp {
 
 // Start new calculation and spawn threads.
 bool EquityCalculator::start(const std::vector<CardRange>& handRanges, uint64_t boardCards, uint64_t deadCards,
                              bool enumerateAll, double stdevTarget, std::function<void(const Results&)> callback,
-                             double updateInterval, unsigned threadCount)
+                             double updateInterval, unsigned threadCount, unsigned nb_board_cards)
 {
+
+    m_nb_board_cards = nb_board_cards;
     if (handRanges.size() == 0 || handRanges.size() > MAX_PLAYERS)
         return false;
-    if (bitCount(boardCards) > BOARD_CARDS)
+    if (bitCount(boardCards) > m_nb_board_cards)
         return false;
-    if (2 * handRanges.size() + bitCount(deadCards) + BOARD_CARDS > CARD_COUNT)
+    if (2 * handRanges.size() + bitCount(deadCards) + m_nb_board_cards > CARD_COUNT)
         return false;
 
     // Set up card ranges.
+
     mDeadCards = deadCards;
     mBoardCards = boardCards;
     mOriginalHandRanges = handRanges;
     mHandRanges = removeInvalidCombos(handRanges, mDeadCards | mBoardCards);
+
     std::vector<CombinedRange> combinedRanges = CombinedRange::joinRanges(mHandRanges, MAX_COMBINED_RANGE_SIZE);
+
     for (unsigned i = 0; i < combinedRanges.size(); ++i) {
         if (combinedRanges[i].combos().size() == 0)
             return false;
@@ -52,6 +58,7 @@ bool EquityCalculator::start(const std::vector<CardRange>& handRanges, uint64_t 
         threadCount = std::thread::hardware_concurrency();
     mUnfinishedThreads = threadCount;
 
+
     // Start threads.
     mThreads.clear();
     for (unsigned i = 0; i < threadCount; ++i) {
@@ -72,7 +79,7 @@ void EquityCalculator::simulateRegularMonteCarlo()
 {
     unsigned nplayers = (unsigned)mHandRanges.size();
     Hand fixedBoard = getBoardFromBitmask(mBoardCards);
-    unsigned remainingCards = BOARD_CARDS - fixedBoard.count();
+    unsigned remainingCards = m_nb_board_cards - fixedBoard.count();
     BatchResults stats(nplayers);
 
     Rng rng{std::random_device{}()};
@@ -133,7 +140,7 @@ void EquityCalculator::simulateRandomWalkMonteCarlo()
 {
     unsigned nplayers = (unsigned)mHandRanges.size();
     Hand fixedBoard = getBoardFromBitmask(mBoardCards);
-    unsigned remainingCards = 5 - fixedBoard.count();
+    unsigned remainingCards = m_nb_board_cards - fixedBoard.count();
     BatchResults stats(nplayers);
 
     Rng rng{std::random_device{}()};
@@ -153,7 +160,9 @@ void EquityCalculator::simulateRandomWalkMonteCarlo()
         for (;;) {
             // Randomize board and evaluate for current holecards.
             Hand board = fixedBoard;
+            //cout << board.count() << endl;
             randomizeBoard(board, remainingCards, usedCardsMask, rng, cardDist);
+            //cout << board.count() << endl;
             evaluateHands(playerHands, nplayers, board, &stats, 1);
 
             // Update results periodically.
@@ -224,7 +233,7 @@ bool EquityCalculator::randomizeHoleCards(uint64_t &usedCardsMask, unsigned* com
 void EquityCalculator::randomizeBoard(Hand& board, unsigned remainingCards, uint64_t usedCardsMask,
                                       Rng& rng, FastUniformIntDistribution<unsigned,16>& cardDist)
 {
-    omp_assert(remainingCards + bitCount(usedCardsMask) <= CARD_COUNT && remainingCards <= BOARD_CARDS);
+    omp_assert(remainingCards + bitCount(usedCardsMask) <= CARD_COUNT && remainingCards <= m_nb_board_cards);
     for(unsigned i = 0; i < remainingCards; ++i) {
         unsigned card;
         uint64_t cardMask;
@@ -242,7 +251,7 @@ template<bool tFlushPossible>
 void EquityCalculator::evaluateHands(const Hand* playerHands, unsigned nplayers, const Hand& board, BatchResults* stats,
                                      unsigned weight)
 {
-    omp_assert(board.count() == BOARD_CARDS);
+    omp_assert(board.count() == m_nb_board_cards);
     ++stats->evalCount;
     unsigned bestRank = 0;
     unsigned winnersMask = 0;
@@ -387,7 +396,7 @@ void EquityCalculator::enumerateBoard(const HandWithPlayerIdx* playerHands, unsi
         hands[i] = Hand(playerHands[i].cards);
 
     // Take a shortcut when no board cards left to iterate.
-    unsigned remainingCards = BOARD_CARDS - board.count();
+    unsigned remainingCards = m_nb_board_cards - board.count();
     if (remainingCards == 0) {
         evaluateHands(hands, nplayers, board, stats, 1);
         return;
@@ -675,11 +684,11 @@ uint64_t EquityCalculator::getPreflopCombinationCount()
 // of undealt board cards.
 uint64_t EquityCalculator::getPostflopCombinationCount()
 {
-    omp_assert(bitCount(mBoardCards) <= BOARD_CARDS);
+    omp_assert(bitCount(mBoardCards) <= m_nb_board_cards);
     unsigned cardsInDeck = CARD_COUNT;
     cardsInDeck -= bitCount(mDeadCards | mBoardCards);
     cardsInDeck -= 2 * (unsigned)mHandRanges.size();
-    unsigned boardCardsRemaining = BOARD_CARDS - bitCount(mBoardCards);
+    unsigned boardCardsRemaining = m_nb_board_cards - bitCount(mBoardCards);
     uint64_t postflopCombos = 1;
     for (unsigned i = 0; i < boardCardsRemaining; ++i)
         postflopCombos *= cardsInDeck - i;
