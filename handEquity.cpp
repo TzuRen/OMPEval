@@ -24,7 +24,7 @@ extern "C" double hand_equity(const char *hole_card, const char *community_card,
 	//string hole_card = "9sTs";
 	//string community_card = "";
 	//int nb_players = 6;
-	high_resolution_clock::time_point t1 = high_resolution_clock::now();
+	//high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	unsigned nb_board_cards = nb_board_cards_;
 	EquityCalculator eq;
 	vector<CardRange> ranges (nb_players);
@@ -46,17 +46,20 @@ extern "C" double hand_equity(const char *hole_card, const char *community_card,
 			eq.stop();
 	};
 	double updateInterval = 0.0001; // Callback called every 0.0001s.
-	unsigned threads = 0; // max hardware parallelism (default)
+	unsigned threads = 1; // max hardware parallelism (default)
 	eq.start(ranges, board, dead, false, std_tol, callback, updateInterval, threads, nb_board_cards);
 	eq.wait();
 	auto r = eq.getResults();
 
-	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	/*
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>( t2 - t1 ).count();
+
 	if (verbose){
 		cout << "[From C++] Total time taken: "<< 1e-3*duration << " [ms], Time taken for evals: " << 1e3*r.time << " [ms]"<<endl;
 		cout << "[From C++] Speed: " << 1e-6 * r.speed << " [Meval/s], std: " << r.stdev << endl;
 	}
+	 */
 
 
 	return r.equity[0];
